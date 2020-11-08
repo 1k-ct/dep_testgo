@@ -1,0 +1,49 @@
+version: 2.1 # use CircleCI 2.1
+
+orbs:
+    gcp-cloud-run: circleci/gcp-cloud-run@1.0.2
+
+executors:
+    build:
+        docker:
+            - image: circleci/golang:1.13 #
+
+jobs:
+    # テスト時はgo1.13のdockerイメージを使ってgo testを実行
+    test-job:
+        executor:
+            name: build
+        steps:
+            - checkout
+            - run:
+                name: Run unit tests
+                command: | 
+                    cd src/api
+                    go test -v ./...
+    # デプロイ時はContainerRegistoryにビルドしたイメージを保管し、CloudRunへのデプロイを実行
+    # リポジトリのDockerfileに従ってビルドされる
+    # プロジェクトID test-project-hogehogeは変更する
+    deploy-job:
+        docker:
+            - image: 'cimg/base:stable'
+        steps:
+            - checkout
+            - run:
+                command: cd src/api
+            - gcp-cloud-run/init
+            - gcp-cloud-run/build:
+                source: ./src/api
+                tag: 'asia.gcr.io/${GOOGLE_PROJECT_ID}/src/api:${CIRCLE_SHA1}'
+            - gcp-cloud-run/deploy:
+                image: 'asia.gcr.io/${GOOGLE_PROJECT_ID}/src/api:${CIRCLE_SHA1}'
+                platform: managed
+                region: asia-northeast1
+                service-name: src/api
+                unauthenticated: true
+
+#テスト用ジョブ(テストのみ)とデプロイ用ジョブ(ビルド、デプロイ)に分けて実行
+workflows:
+    test-and-deploy:
+        jobs:
+            - test-job
+            - deploy-job
