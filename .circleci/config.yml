@@ -30,7 +30,7 @@ jobs:
             - checkout
             - run:
                 command: cd src/api
-            - gcp-cloud-run/init:
+            - gcp-cloud-run/init
             - gcp-cloud-run/build:
                 source: ./src/api
                 tag: 'asia.gcr.io/${GOOGLE_PROJECT_ID}/src/api:${CIRCLE_SHA1}'
